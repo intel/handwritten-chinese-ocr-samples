@@ -398,8 +398,10 @@ def test(data_loader, model, args):
                     print('TEST [{0}/{1}]'.format(j, i))
                     print('TEST PRE {}'.format(pre))
                     print('TEST TRU {}'.format(tru))
-                assert isinstance(pre, str), pre
-                assert isinstance(tru, str), tru
+                if not isinstance(pre, str):
+                    raise AssertionError(pre)
+                if not isinstance(tru, str):
+                    raise AssertionError(tru)
                 errs = editdistance.eval(pre, tru)
                 total += errs
                 nchars += len(tru)

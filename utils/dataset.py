@@ -18,7 +18,8 @@ import torchvision.transforms as transforms
 class ImageDataset(Dataset):
     def __init__(self, data_path: str, img_shape: tuple, phase: str, batch_size=1):
         super(ImageDataset, self).__init__()
-        assert phase in ['train', 'val', 'test']
+        if not (phase in ['train', 'val', 'test']):
+            raise AssertionError(phase)
 
         self.data_list = []
         self.img_c = img_shape[0]

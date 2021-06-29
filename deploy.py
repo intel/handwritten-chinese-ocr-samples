@@ -92,8 +92,10 @@ def main():
     log.info("Loading network files...\n\t{}\n\t{}".format(model_xml, model_bin))
     net = ie.read_network(model=model_xml, weights=model_bin)
 
-    assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
-    assert len(net.outputs) == 1, "Sample supports only single output topologies"
+    if not (len(net.input_info.keys()) == 1):
+        raise AssertionError("Sample supports only single input topologies")
+    if not (len(net.outputs) == 1):
+        raise AssertionError("Sample supports only single output topologies")
 
     log.info("Preparing input/output blobs...")
     input_blob = next(iter(net.input_info))
