@@ -33,12 +33,16 @@ try:
     from apex.parallel import DistributedDataParallel as DDP
     from apex import amp
 except ImportError:
-    raise ImportError("Please install apex from https://www.github.com/nvidia/apex.")
+    raise ImportError(
+        'Please install apex from https://www.github.com/nvidia/apex.'
+    )
 
 try:
     from warpctc_pytorch import CTCLoss
 except ImportError:
-    raise ImportError("Please install warpctc from https://github.com/SeanNaren/warp-ctc.")
+    raise ImportError(
+        'Please install warpctc from https://github.com/SeanNaren/warp-ctc.'
+    )
 
 from utils.dataset import ImageDataset, AlignCollate
 from models.handwritten_ctr_model import hctr_model
@@ -119,8 +123,9 @@ def main():
         warnings.warn('You have chosen a specific GPU. This will completely '
                       'disable multiprocessing distributed training.')
     elif ngpus_per_node <= 1:
-        print('No enough GPUs for multiprocessing distributed training.')
-        sys.exit()
+        raise EnvironmentError(
+            'No enough GPUs for multiprocessing distributed training.'
+        )
     else:
         args.multiprocessing_distributed = True
 
@@ -160,7 +165,7 @@ def main_worker(gpu, ngpus_per_node, args):
         codec = ctc_codec(characters)
         criterion = CTCLoss().cuda(args.gpu)
     else:
-        raise ValueError("not expected prediction.")
+        raise ValueError('not expected prediction.')
 
     # optimizer
     if args.optimizer == 'SGD':
@@ -171,7 +176,7 @@ def main_worker(gpu, ngpus_per_node, args):
         optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                      weight_decay=args.weight_decay)
     else:
-        raise ValueError("not expected optimizer.")
+        raise ValueError('not expected optimizer.')
 
     #######################################################################
     # Initialize distributed training
@@ -209,7 +214,9 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.resume:
         if os.path.isfile(args.resume):
             print('=> loading checkpoint: {}'.format(args.resume))
-            checkpoint = torch.load(args.resume, map_location='cuda:'+str(args.gpu))
+            checkpoint = torch.load(
+                args.resume, map_location='cuda:' + str(args.gpu)
+            )
             args.start_epoch = checkpoint['epoch']
             best_acc = checkpoint['best_acc']
             if args.multiprocessing_distributed:
@@ -217,11 +224,12 @@ def main_worker(gpu, ngpus_per_node, args):
             else:
                 model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
-            print('> loaded checkpoint: {} (epoch {})'
+            print('=> loaded checkpoint: {} (epoch {})'
                   .format(args.resume, checkpoint['epoch']))
         else:
-            print('=> no checkpoint found at: {}'.format(args.resume))
-            return
+            raise FileNotFoundError(
+                'Valid checkpoint for resume is not found.'
+            )
 
     #######################################################################
     # Data loading code
@@ -231,7 +239,8 @@ def main_worker(gpu, ngpus_per_node, args):
                                  phase='train',
                                  batch_size=args.batch_size)
     if args.multiprocessing_distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        train_sampler = \
+            torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
         train_sampler = None
     train_loader = torch.utils.data.DataLoader(train_dataset,
@@ -239,7 +248,8 @@ def main_worker(gpu, ngpus_per_node, args):
                                                shuffle=(train_sampler is None),
                                                num_workers=args.workers,
                                                collate_fn=AlignCollate_train,
-                                               pin_memory=True, sampler=train_sampler)
+                                               pin_memory=True,
+                                               sampler=train_sampler)
 
     AlignCollate_val = AlignCollate(imgH=args.img_height, PAD=args.PAD)
     val_dataset = ImageDataset(data_path=args.data,
@@ -301,7 +311,8 @@ def main_worker(gpu, ngpus_per_node, args):
         }, args, is_best, is_val=False)
 
 
-def train(train_loader, val_loader, model, criterion, optimizer, epoch, args, val_acc):
+def train(train_loader, val_loader, model, criterion, optimizer,
+          epoch, args, val_acc):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -320,13 +331,13 @@ def train(train_loader, val_loader, model, criterion, optimizer, epoch, args, va
         preds = model(input) # preds: WBD
         preds_sizes = torch.IntTensor([preds.size(0)] * args.batch_size)
         loss = criterion(preds,
-                         torch.from_numpy(target_indexs), # on cuda ?
+                         torch.from_numpy(target_indexs),
                          preds_sizes,
                          torch.from_numpy(target_length))
 
-        if math.isnan(loss.item()): # how about inf loss ?
-            print('Stop at NaN loss.')
-            sys.exit()
+        # TODO: how about inf loss ?
+        if math.isnan(loss.item()):
+            raise ValueError('Stop at NaN loss.')
         losses.update(loss.item(), input.size(0))
 
         # compute gradient and do optimization step
@@ -407,12 +418,13 @@ def test(data_loader, model, args):
                 nchars += len(tru)
 
             if nchars == 0:
-                print('character length of labels is 0!')
-                sys.exit()
+                raise ValueError(
+                    'Number of label characters should not be 0.'
+                )
 
-            # compute error rate
-            cur_err = total * 1.0 / nchars
-            err_rate.update(cur_err, input.size(0))
+            # compute character error rate
+            CER = total * 1.0 / nchars
+            err_rate.update(CER, input.size(0))
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -421,24 +433,24 @@ def test(data_loader, model, args):
                 print('TEST: [{0}/{1}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                      'Err {err_rate.val:.4f} ({err_rate.avg:.4f})\t'.format(
-                      i, len(data_loader), batch_time=batch_time,
-                      data_time=data_time, err_rate=err_rate))
+                      'Err {err_rate.val:.4f} ({err_rate.avg:.4f})\t'
+                      .format(
+                          i, len(data_loader), batch_time=batch_time,
+                          data_time=data_time, err_rate=err_rate
+                      )
+                )
 
             # reset time for next iteration
             end = time.time()
 
-    if nchars == 0:
-        print('character length of labels is 0!')
-        sys.exit()
-    CER = total * 1.0 / nchars # character error rate
     print('Total Test CER: {}'.format(CER))
     return 1.0 - CER
 
 
-def save_checkpoint(state, args, is_best, is_val=False, suffix_name='checkpoint.pth.tar'):
-    if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-        and args.rank == 0):
+def save_checkpoint(state, args, is_best, is_val=False,
+                    suffix_name='checkpoint.pth.tar'):
+    if not args.multiprocessing_distributed or \
+        (args.multiprocessing_distributed and args.rank == 0):
         if is_val:
             suffix_name = 'val_' + suffix_name
         current_ckp_name = args.model_type + '_' + suffix_name
@@ -450,13 +462,14 @@ def save_checkpoint(state, args, is_best, is_val=False, suffix_name='checkpoint.
                             args.model_type +
                             epoch_str +
                             acc_str +
-                            suffix_name
-            )
-    # ignore the checkpoint from args.rank != 0 if args.multiprocessing_distributed.
+                            suffix_name)
+
+    # NOTE: ignore the checkpoint from args.rank != 0
+    # if args.multiprocessing_distributed.
 
 
 class AverageMeter(object):
-    """Computes and stores the average and current value"""
+    '''Computes and stores the average and current value'''
     def __init__(self):
         self.reset()
 
@@ -474,7 +487,8 @@ class AverageMeter(object):
 
 
 def adjust_learning_rate(optimizer, epoch, args):
-    '''Sets the learning rate to the initial LR decayed by 10 every 30 epochs'''
+    '''Sets the learning rate to the initial LR decayed 
+    by 10 every 30 epochs'''
     lr = args.lr * (0.1 ** (epoch // 30))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
