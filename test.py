@@ -10,6 +10,7 @@ import os
 import sys
 import time
 import cv2
+import numpy as np
 import editdistance
 
 import torch
@@ -85,12 +86,27 @@ def build_argparser():
     args.add_argument('-pf', '--print-freq', dest='print_freq',
                       type=int, metavar='N', default=100,
                       help='log print frequency during model testing.')
+    ###########################################################################
+    # subgroup of parameters for hyper-param tunning only.
+    args.add_argument('-gs', '--grid-search', action='store_true',
+                      help='use grid search for lm_panelty and len_bonus.')
+    args.add_argument('-al', '--alpha-lower', type=float, default=0.7,
+                      help='alpha(lm_panelty) lower bound')
+    args.add_argument('-au', '--alpha-upper', type=float, default=1.1,
+                      help='alpha(lm_panelty) upper bound')
+    args.add_argument('-ac', '--alpha-count', type=int, default=10,
+                      help='alpha(lm_panelty) count')
+    args.add_argument('-bl', '--beta-lower', type=float, default=4.2,
+                      help='beta(len_bonus) lower bound')
+    args.add_argument('-bu', '--beta-upper', type=float, default=6.6,
+                      help='beta(len_bonus) upper bound')
+    args.add_argument('-bc', '--beta-count', type=int, default=25,
+                      help='beta(len_bonus) count')
+
     return parser
 
 
-def test():
-    args = build_argparser().parse_args()
-
+def test(args):
     if os.path.isfile(args.model_file) is False:
         raise FileNotFoundError(
             'No model file found at: {}'.format(args.model_file)
@@ -137,13 +153,7 @@ def test():
     model.eval()
 
     if args.benchmark_mode == True:
-        if not os.path.isdir(args.input):
-            raise ValueError(
-                'Input should be a folder under benchmark mode.'
-            )
-
-        benchmark(model, codec, args)
-        return
+        return benchmark(model, codec, args)
 
     # Preprocess the input images if needed
     input_list = preprocess_input(args.input, img_height)
@@ -185,6 +195,8 @@ def test():
                 (time_consumed / args.batch_size) * 1000))
             print('predicted results: {}'.format(result))
 
+    return None
+
 
 def preprocess_input(input, height):
     img_list = []
@@ -213,6 +225,10 @@ def preprocess_input(input, height):
 
 
 def benchmark(model, codec, args):
+    if not os.path.isdir(args.input):
+        raise AssertionError(
+            'Input should be a folder under benchmark mode.'
+        )
     AlignCollate_test = AlignCollate(imgH=model.img_height, PAD=model.PAD)
     test_dataset = ImageDataset(data_path=args.input,
                                 img_shape=(1, model.img_height),
@@ -284,7 +300,7 @@ def benchmark(model, codec, args):
             end = time.time()
 
     print('Total Test CER: {}'.format(CER))
-    return 1.0 - CER
+    return CER
 
 
 def get_model_info(model_type):
@@ -310,4 +326,38 @@ def get_model_info(model_type):
 
 
 if __name__ == '__main__':
-    test()
+    args = build_argparser().parse_args()
+    if args.grid_search == False:
+        test(args)
+    else:
+        # use grid search to find the best lm_panelty and len_bonus
+        # recommendation for short execution time of each iteration
+        # small set of validation data (e.g. 10%)
+        # small beam size and search depth (e.g. 5)
+        # disable use_tfm_pred
+        if not (args.benchmark_mode == True):
+            raise AssertionError(args.benchmark_mode)
+        alpha = np.linspace(args.alpha_lower,
+            args.alpha_upper, args.alpha_count)
+        beta = np.linspace(args.beta_lower,
+            args.beta_upper, args.beta_count)
+
+        min_cer = 1.0
+        min_params = (0, 0)
+        for a in alpha:
+            for b in beta:
+                print('searching with a:{}, b:{}, '
+                      'min params:{}, min cer:{}'
+                      .format(a, b, min_params, min_cer)
+                )
+                args.lm_panelty = a
+                args.len_bonus = b
+                cer = test(args)
+
+                if cer < min_cer:
+                    min_cer = cer
+                    min_params = (a, b)
+
+        print('min params:{}, min cer: {}'
+            .format(min_params, min_cer)
+        )
