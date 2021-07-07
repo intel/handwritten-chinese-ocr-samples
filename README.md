@@ -36,12 +36,14 @@ python <your-openvino-installation>/deployment_tools/open_model_zoo/tools/downlo
 ```
 Run inference with the SCUT-EPT test image as input and check the prediction.
 ```
-# use character list as an argument
-# input data was not normalized
+# use character list for SCUT-EPT data instead
+# https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt
+# NOTE: input data was not normalized during the SCUT-EPT model training
 python deploy.py -lang hctr -m <path-to-handwritten-simplified-chinese-recognition-0001.xml> \
        -dm greedy-search -i <path-to-input-image>
 ```
-Input and output examples (NOT use language model):
+Input and output examples (NOT use language model, and only use VGG-based network for training this recognition model):
+
 ![input0](images/000000.jpg)
 
 ['仍有“铁马冰河入梦来”的情怀，一生心忧天']
