@@ -18,6 +18,6 @@ Specifically, the alphanumeric and symbol characters will be selected, which are
 ### 4. Synthesize new text images with isolated character images
 In order to increase the amount of data for training, all the isolated character sample data are considered. Given the existing bounding boxes around each character in the text image, the synthesization process is applied by reusing these bounding boxes and just replacing each position with a random selected character image from HWDB1.x data. In other words, this method help keeps the natural writing sytle as much as possible. Below figure illustrated this text synthesization process.
 
-![synthesize-illustration](./../../../images/synthesize-illustration.png)
+![synthesize-illustration](./../../images/synthesize-illustration.png)
 
-Above dgr2png execution file will be resued to generate the synthesized data, and then call preparation_flow.py again with "synthesize" parameter to generate the additional image-groundtruth pairs for data augmentation training.
+Above dgr2png executable binary will be resued to generate the synthesized data, and then call preparation_flow.py again with "synthesize" parameter to generate the additional image-groundtruth pairs for data augmentation training.
