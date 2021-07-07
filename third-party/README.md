@@ -42,7 +42,7 @@ Detailed usage about kenlm can be found [here](https://kheafield.com/code/kenlm/
    ```
 
 
-## Train Transformer-based Language model with [Fairseq](https://github.com/pytorch/fairseq/).
+## Train Transformer-based language model with [Fairseq](https://github.com/pytorch/fairseq/).
 
 ### Installation  
 Please refer to more details from [official instruction of fairseq installation.](https://github.com/pytorch/fairseq/)
