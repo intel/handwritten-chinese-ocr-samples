@@ -31,8 +31,8 @@ class ctc_codec(object):
 
         self.ngram = None
         self.transformer = None
-        self.lm_panelty = 2
-        self.len_bonus = 5.8
+        self.lm_panelty = 2 # 2: ngram 0.8: transformer
+        self.len_bonus = 5.8 # 5.8: ngram 4.8: transformer
         self.search_depth = 10
         self.beam_size = 10
         self.use_tfm_score = False
